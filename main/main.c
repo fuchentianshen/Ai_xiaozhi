@@ -1,29 +1,30 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "task_runner.h"
 
-void task1(void *arg)
-{
-    char *str = (char *)arg;
-    printf("Task1: %s\n", str);
-}
+#include "led_strip.h"
 
 void app_main(void)
 {
-    task_runner_handle_t task_runner = task_runner_init();
-    task_runner_handle_t task_runner2 = task_runner_init();
+    led_strip_handle_t led_strip_handle = NULL;
+    led_strip_rmt_config_t led_rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .flags.with_dma = 1,
+    };
+    led_strip_config_t led_strip_config = {
+        .strip_gpio_num = 46,
+        .max_leds = 2,
+        .led_model = LED_MODEL_WS2812,
+        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+    };
 
-    task_runner_add_task(task_runner, task1, "Hello World");
-    task_runner_add_task(task_runner2, task1, "task_runner2");
-    task_runner_start(task_runner);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    task_runner_start(task_runner2);
+    led_strip_new_rmt_device(&led_strip_config, &led_rmt_config, &led_strip_handle);
 
-    vTaskDelay(pdMS_TO_TICKS(5000)); //等待5秒
+    led_strip_set_pixel(led_strip_handle, 0, 255, 0, 0);// red
+    led_strip_set_pixel(led_strip_handle, 1, 0, 255, 0);// green
+    led_strip_refresh(led_strip_handle);
 
-    task_runner_stop(task_runner);
-    task_runner_stop(task_runner2);
-    task_runner_deinit(task_runner);
-    task_runner_deinit(task_runner2);
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+    led_strip_clear(led_strip_handle);
 }
