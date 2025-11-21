@@ -23,3 +23,4 @@ void bsp_board_button_init(bsp_board_t *board)
     //设置标志位
     xEventGroupSetBits(board->board_status, BSP_BOARD_BUTTON_BIT);
 }
+

@@ -38,6 +38,8 @@ void app_main(void)
     // 初始化led和按键
     bsp_board_led_init(board);
     bsp_board_button_init(board);
+    bsp_board_nvs_init(board);
+    bsp_board_wifi_init(board);
 
     // 检查状态
     if (bsp_board_check_status(board, BSP_BOARD_LED_BIT | BSP_BOARD_BUTTON_BIT, 5000))
