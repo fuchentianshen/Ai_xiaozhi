@@ -4,3 +4,4 @@ dependencies:
     version: '>=4.1.0'
   espressif/led_strip: ^3
   espressif/button: ^4
+  espressif/esp_codec_dev: ^1
