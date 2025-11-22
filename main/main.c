@@ -41,6 +41,7 @@ void app_main(void)
     bsp_board_nvs_init(board);
     // bsp_board_wifi_init(board);
     bsp_board_codec_init(board);
+    bsp_board_lcd_init(board);
 
     // 检查状态
     if (bsp_board_check_status(board,

@@ -6,6 +6,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "esp_codec_dev.h"
+#include "esp_lcd_panel_dev.h"
+#include "esp_lcd_panel_io.h"
 
 typedef struct
 {
@@ -18,6 +20,9 @@ typedef struct
     button_handle_t back_button;
     // 音频
     esp_codec_dev_handle_t codec_dev;
+    // LCD
+    esp_lcd_panel_io_handle_t lcd_io;
+    esp_lcd_panel_handle_t lcd_panel;
 } bsp_board_t;
 
 bsp_board_t *bsp_board_get_instance(void);
@@ -32,4 +37,6 @@ void bsp_board_wifi_init(bsp_board_t *board);
 
 void bsp_board_codec_init(bsp_board_t *board);
 
-bool bsp_board_check_status(bsp_board_t *board, EventBits_t status_bit,uint32_t timeout_ms );
+void bsp_board_lcd_init(bsp_board_t *board);
+
+bool bsp_board_check_status(bsp_board_t *board, EventBits_t status_bit, uint32_t timeout_ms);
