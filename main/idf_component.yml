@@ -1,7 +1,5 @@
 dependencies:
-
-  idf:
-    version: '>=4.1.0'
-  espressif/led_strip: ^3
-  espressif/button: ^4
-  espressif/esp_codec_dev: ^1
+  led_strip: ^3
+  button: ^4
+  esp_codec_dev: ^1
+  esp_audio_codec: ^2
