@@ -8,11 +8,11 @@
 
 #define FEED_TASK_STACK_SIZE 4096
 #define FEED_TASK_PRIORITY 5
-#define FEED_TASK_CORE 0
+#define FEED_TASK_CORE 1
 
 #define FETCH_TASK_STACK_SIZE 4096
 #define FETCH_TASK_PRIORITY 5
-#define FETCH_TASK_CORE 0
+#define FETCH_TASK_CORE 1
 
 ESP_EVENT_DEFINE_BASE(AUDIO_SR_EVENT); // 创建事件
 
@@ -109,12 +109,12 @@ void audio_sr_fetch_task(void *arg)
 
 audio_sr_t *audio_sr_create(RingbufHandle_t output)
 {
-    audio_sr_t *sr = object_create(sizeof(audio_sr_t));
+    audio_sr_t *sr = (audio_sr_t *)object_create(sizeof(audio_sr_t));
     sr->output = output;
 
     // 初始化AFE配置
     srmodel_list_t *models = esp_srmodel_init("model");
-    afe_config_t *afe_config = afe_config_init("MMNR", models, AFE_TYPE_SR, AFE_MODE_HIGH_PERF);
+    afe_config_t *afe_config = afe_config_init("MR", models, AFE_TYPE_SR, AFE_MODE_HIGH_PERF);
 
     // 获取句柄
     sr->afe_handle = esp_afe_handle_from_config(afe_config);
