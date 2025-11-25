@@ -38,6 +38,11 @@ void audio_decoder_task(void *arg)
         size_t size_read = 0;
         void *buf_read = xRingbufferReceive(decoder->input_buffer, &size_read, pdMS_TO_TICKS(100));
 
+        if (!buf_read)
+        {
+            continue;
+        }
+
         esp_audio_dec_in_raw_t in_frame = {
             .buffer = buf_read,
             .len = size_read,

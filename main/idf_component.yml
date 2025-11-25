@@ -3,3 +3,4 @@ dependencies:
   button: ^4
   esp_codec_dev: ^1
   esp_audio_codec: ^2
+  esp-sr: ^2

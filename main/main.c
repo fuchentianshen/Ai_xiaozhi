@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include "bsp/bsp_board.h"
 #include "esp_log.h"
-#include "audio/audio_encoder.h"
-#include "audio/audio_decoder.h"
+#include "audio/audio_processer.h"
 
 #define TAG "main"
 
@@ -33,30 +32,27 @@ void button_callback(void *button_handle, void *usr_data)
     }
 }
 
-void audio_input_task(void *arg)
+void audio_sr_callback(void *event_handler_arg,
+                       esp_event_base_t event_base,
+                       int32_t event_id,
+                       void *event_data)
 {
-    bsp_board_t *board = bsp_board_get_instance();
-    RingbufHandle_t input = (RingbufHandle_t)arg;
-    uint8_t buffer[1024];
-
-    while (1)
+    switch (event_id)
     {
-        esp_codec_dev_read(board->codec_dev, buffer, sizeof(buffer));
-        xRingbufferSend(input, buffer, sizeof(buffer), portMAX_DELAY);
-    }
-}
+    case AUDIO_SR_EVENT_WAKEUP:
+        char *wakeup_word = (char *)event_data;
+        ESP_LOGI(TAG, "Wakeup event detected, wakeup word: %s", wakeup_word);
+        break;
+    case AUDIO_SR_EVENT_SPEECH:
+        ESP_LOGI(TAG, "Speech event detected");
+        break;
+    case AUDIO_SR_EVENT_SILIENCE:
+        ESP_LOGI(TAG, "Silence event detected");
+        break;
 
-void audio_output_task(void *arg)
-{
-    bsp_board_t *board = bsp_board_get_instance();
-    RingbufHandle_t output = (RingbufHandle_t)arg;
-
-    while (1)
-    {
-        size_t size = 0;
-        void *buffer = xRingbufferReceive(output, &size, portMAX_DELAY);
-        esp_codec_dev_write(board->codec_dev, buffer, size);
-        vRingbufferReturnItem(output, buffer);
+    default:
+        ESP_LOGW(TAG, "unknown event");
+        break;
     }
 }
 
@@ -95,26 +91,24 @@ void app_main(void)
     esp_codec_dev_set_in_gain(board->codec_dev, 20);
     esp_codec_dev_sample_info_t sample_info = {
         .bits_per_sample = CODEC_BIT_WIDTH,
-        .channel = 1,
+        .channel = 2,
         .sample_rate = CODEC_SAMPLE_RATE,
 
     };
     esp_codec_dev_open(board->codec_dev, &sample_info);
 
-    // 创建环形缓存
-    RingbufHandle_t input = xRingbufferCreate(16 * 1024, RINGBUF_TYPE_BYTEBUF);
-    RingbufHandle_t medium = xRingbufferCreate(2 * 1024, RINGBUF_TYPE_NOSPLIT);
-    RingbufHandle_t output = xRingbufferCreate(16 * 1024, RINGBUF_TYPE_BYTEBUF);
+    audio_processer_t *processer = audio_processer_create();
 
-    // 创建音频编解码器
-    audio_encoder_t *encoder = audio_encoder_create(input, medium, CODEC_SAMPLE_RATE, CODEC_BIT_WIDTH, 1);
-    audio_decoder_t *decoder = audio_decoder_create(medium, output, CODEC_SAMPLE_RATE, 1);
+    audio_processer_register_callback(processer, AUDIO_SR_EVENT_SILIENCE, audio_sr_callback, NULL);
+    audio_processer_register_callback(processer, AUDIO_SR_EVENT_SPEECH, audio_sr_callback, NULL);
+    audio_processer_register_callback(processer, AUDIO_SR_EVENT_WAKEUP, audio_sr_callback, NULL);
 
-    // 启动编解码器
-    audio_encoder_start(encoder);
-    audio_decoder_start(decoder);
+    audio_processer_start(processer);
 
-    // 创建音频输入输出任务
-    xTaskCreate(audio_input_task, "audio_input_task", 4096, input, 5, NULL);
-    xTaskCreate(audio_output_task, "audio_output_task", 4096, output, 5, NULL);
+    void *buffer = malloc(300);
+    while (1)
+    {
+        size_t size = audio_processer_read(processer, buffer, 300);
+        audio_processer_write(processer, buffer, size);
+    }
 }
