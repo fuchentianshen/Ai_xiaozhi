@@ -21,9 +21,10 @@ static void bsp_board_wifi_event_handler(void *event_handler_arg,
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
+        ESP_LOGI(TAG, "WiFi connected");
         xEventGroupSetBits(board->board_status, BSP_BOARD_WIFI_BIT);
     }
-    else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_CRED_RECV)
+    else if (event_base == WIFI_PROV_EVENT && event_id == WIFI_PROV_CRED_FAIL)
     {
         ESP_LOGW(TAG, "Provisioning failed! Please check the Wi-Fi credentials and try again.");
         wifi_prov_mgr_reset_sm_state_on_failure();
@@ -52,13 +53,18 @@ void bsp_board_wifi_init(bsp_board_t *board)
     esp_netif_create_default_wifi_sta();
 
     // 注册wifi和ip的事件回调
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &bsp_board_wifi_event_handler, board, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, ESP_NETIF_IP_EVENT_GOT_IP, &bsp_board_wifi_event_handler, board, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, bsp_board_wifi_event_handler, board, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, bsp_board_wifi_event_handler, board, NULL));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &bsp_board_wifi_event_handler, board, NULL));
 
     // 创建wifi任务
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    // 获取mac地址
+    uint8_t mac[6] = {0};
+    esp_wifi_get_mac(ESP_IF_WIFI_STA, mac);
+    snprintf(board->mac, sizeof(board->mac), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
     // 初始化配网manager
     wifi_prov_mgr_config_t config = {
@@ -69,17 +75,15 @@ void bsp_board_wifi_init(bsp_board_t *board)
 
     // 检查配网状态
     bool provisioned = false;
-    wifi_prov_mgr_reset_provisioning();
-    // ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
+    // wifi_prov_mgr_reset_provisioning();
+    ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
     if (!provisioned)
     {
         // 开始配网
         // 通过mac地址获取默认的服务名称
-        uint8_t mac[6] = {0};
         char service_name[15] = {0};
-        esp_wifi_get_mac(ESP_IF_WIFI_AP, mac);
         snprintf(service_name, sizeof(service_name), "XIAOZHI_%02X%02X%02X", mac[3], mac[4], mac[5]);
-        ESP_ERROR_CHECK(wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1, SECURITY_KEY, service_name, NULL));
+        wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1, SECURITY_KEY, service_name, NULL);
 
         // 获取二维码字符串
         char payload[150] = {0};
@@ -94,5 +98,17 @@ void bsp_board_wifi_init(bsp_board_t *board)
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         // 启动wifi
         ESP_ERROR_CHECK(esp_wifi_start());
+
     }
+}
+
+int bsp_board_wifi_get_rssi(bsp_board_t *board)
+{
+    int rssi = 0;
+    esp_err_t err = esp_wifi_sta_get_rssi(&rssi);
+    if (err != ESP_OK)
+    {
+        return 0;
+    }
+    return rssi;
 }

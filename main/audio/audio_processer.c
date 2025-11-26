@@ -43,10 +43,8 @@ void audio_processer_paly_task(void *arg)
             continue;
         }
 
-        
         esp_codec_dev_write(board->codec_dev, buffer, size);
         vRingbufferReturnItem(processer->dec_output, buffer);
-        
     }
     vTaskDelete(NULL);
 }

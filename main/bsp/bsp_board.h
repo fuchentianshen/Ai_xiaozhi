@@ -23,6 +23,10 @@ typedef struct
     // LCD
     esp_lcd_panel_io_handle_t lcd_io;
     esp_lcd_panel_handle_t lcd_panel;
+
+    // uuid和mac地址
+    char uuid[37];
+    char mac[18];
 } bsp_board_t;
 
 bsp_board_t *bsp_board_get_instance(void);
@@ -34,6 +38,8 @@ void bsp_board_button_init(bsp_board_t *board);
 void bsp_board_nvs_init(bsp_board_t *board);
 
 void bsp_board_wifi_init(bsp_board_t *board);
+
+int bsp_board_wifi_get_rssi(bsp_board_t *board);
 
 void bsp_board_codec_init(bsp_board_t *board);
 
