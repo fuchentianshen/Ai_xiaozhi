@@ -64,7 +64,7 @@ void bsp_board_wifi_init(bsp_board_t *board)
     // 获取mac地址
     uint8_t mac[6] = {0};
     esp_wifi_get_mac(ESP_IF_WIFI_STA, mac);
-    snprintf(board->mac, sizeof(board->mac), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    snprintf(board->mac, sizeof(board->mac), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
     // 初始化配网manager
     wifi_prov_mgr_config_t config = {

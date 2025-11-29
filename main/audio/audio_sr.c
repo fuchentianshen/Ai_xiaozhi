@@ -173,3 +173,17 @@ void audio_sr_register_callback(audio_sr_t *sr, audio_sr_event_t event, esp_even
 {
     esp_event_handler_register_with(sr->sr_event_loop, AUDIO_SR_EVENT, event, callback, arg);
 }
+
+void audio_sr_set_vad_state(audio_sr_t *sr, bool state)
+{
+    sr->last_vad_state = VAD_SILENCE;
+    if (state)
+    {
+        sr->afe_handle->enable_vad(sr->afe_data);
+    }
+    else
+    {
+        sr->afe_handle->disable_vad(sr->afe_data);
+    }
+}
+

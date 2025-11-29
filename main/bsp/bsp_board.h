@@ -7,7 +7,6 @@
 #include "freertos/event_groups.h"
 #include "esp_codec_dev.h"
 #include "esp_lcd_panel_dev.h"
-#include "esp_lcd_panel_io.h"
 
 typedef struct
 {

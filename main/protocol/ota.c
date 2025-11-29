@@ -151,7 +151,7 @@ void ota_process(ota_t *ota)
 
     free(ota->activation_code);
     ota->activation_code = NULL;
-    cJSON *activation_json = cJSON_GetObjectItem(root, "activation_code");
+    cJSON *activation_json = cJSON_GetObjectItem(root, "activation");
     if (activation_json)
     {
         cJSON *code_json = cJSON_GetObjectItem(activation_json, "code");
@@ -172,11 +172,13 @@ void ota_process(ota_t *ota)
         if (cJSON_IsString(token_json))
         {
             ota->websocket_token = strdup(token_json->valuestring);
+            ESP_LOGI(TAG, "Websocket token: %s", ota->websocket_token);
         }
         cJSON *url_json = cJSON_GetObjectItem(websocket_json, "url");
         if (cJSON_IsString(url_json))
         {
             ota->websocket_url = strdup(url_json->valuestring);
+            ESP_LOGI(TAG, "Websocket url: %s", ota->websocket_url);
         }
     }
     cJSON_Delete(root);

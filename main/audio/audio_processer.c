@@ -117,7 +117,7 @@ size_t audio_processer_read(audio_processer_t *processer, void *bufffer, size_t 
     return read_size;
 }
 
-void audio_processer_write(audio_processer_t *processer, void *bufffer, size_t size)
+void audio_processer_write(audio_processer_t *processer, const void *bufffer, size_t size)
 {
     xRingbufferSend(processer->dec_input, bufffer, size, portMAX_DELAY);
 }
@@ -125,4 +125,9 @@ void audio_processer_write(audio_processer_t *processer, void *bufffer, size_t s
 void audio_processer_register_callback(audio_processer_t *processer, audio_sr_event_t event, esp_event_handler_t callback, void *arg)
 {
     audio_sr_register_callback(processer->sr, event, callback, arg);
+}
+
+void audio_processer_set_vad_state(audio_processer_t *processer, bool state)
+{
+    audio_sr_set_vad_state(processer->sr, state);
 }
