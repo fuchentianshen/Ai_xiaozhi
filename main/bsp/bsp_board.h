@@ -36,12 +36,14 @@ void bsp_board_button_init(bsp_board_t *board);
 
 void bsp_board_nvs_init(bsp_board_t *board);
 
-void bsp_board_wifi_init(bsp_board_t *board);
+void bsp_board_wifi_init(bsp_board_t *board, char* payload, size_t len);
 
 int bsp_board_wifi_get_rssi(bsp_board_t *board);
 
 void bsp_board_codec_init(bsp_board_t *board);
 
 void bsp_board_lcd_init(bsp_board_t *board);
+
+void bsp_board_lcd_on(bsp_board_t *board);
 
 bool bsp_board_check_status(bsp_board_t *board, EventBits_t status_bit, uint32_t timeout_ms);

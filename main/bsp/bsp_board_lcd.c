@@ -85,3 +85,9 @@ void bsp_board_lcd_init(bsp_board_t *board)
     // 关闭lcd
     esp_lcd_panel_disp_on_off(board->lcd_panel, false);
 }
+
+void bsp_board_lcd_on(bsp_board_t *board)
+{
+    esp_lcd_panel_disp_on_off(board->lcd_panel, true);
+    gpio_set_level(LCD_PIN_BK_LIGHT, 1);
+}

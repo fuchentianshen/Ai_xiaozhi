@@ -1,0 +1,128 @@
+#include "audio_processor.h"
+#include "audio_encoder.h"
+#include "audio_decoder.h"
+#include "bsp/bsp_board.h"
+#include "object.h"
+#include <stdbool.h>
+#include <string.h>
+#include "esp_log.h"
+
+#define TAG "Audio Processor"
+
+#define PLAY_TASK_STACK_SIZE 4096
+#define PLAY_TASK_CORE_ID 0
+#define PLAY_TASK_PRIORITY 5
+
+struct audio_processor
+{
+    bool is_running;
+
+    audio_encoder_t *encoder;
+    audio_decoder_t *decoder;
+    audio_sr_t *sr;
+
+    RingbufHandle_t enc_input;
+    RingbufHandle_t enc_output;
+    RingbufHandle_t dec_input;
+    RingbufHandle_t dec_output;
+};
+
+static void audio_processor_play_task(void *arg)
+{
+    audio_processor_t *processor = (audio_processor_t *)arg;
+    bsp_board_t *board = bsp_board_get_instance();
+    while (processor->is_running)
+    {
+        size_t size = 0;
+        void *buffer = xRingbufferReceiveUpTo(processor->dec_output, &size, pdMS_TO_TICKS(100), 2048);
+        if (!buffer)
+        {
+            continue;
+        }
+        esp_codec_dev_write(board->codec_dev, buffer, size);
+        vRingbufferReturnItem(processor->dec_output, buffer);
+    }
+    vTaskDelete(NULL);
+}
+
+audio_processor_t *audio_processor_create(void)
+{
+    audio_processor_t *processor = (audio_processor_t *)object_create(sizeof(audio_processor_t));
+
+    processor->enc_input = xRingbufferCreateWithCaps(16384, RINGBUF_TYPE_BYTEBUF, MALLOC_CAP_SPIRAM);
+    processor->enc_output = xRingbufferCreateWithCaps(4096, RINGBUF_TYPE_NOSPLIT, MALLOC_CAP_SPIRAM);
+    processor->dec_input = xRingbufferCreateWithCaps(4096, RINGBUF_TYPE_NOSPLIT, MALLOC_CAP_SPIRAM);
+    processor->dec_output = xRingbufferCreateWithCaps(32768, RINGBUF_TYPE_BYTEBUF, MALLOC_CAP_SPIRAM);
+
+    processor->encoder = audio_encoder_create(processor->enc_input, processor->enc_output, CODEC_SAMPLE_RATE, CODEC_BIT_WIDTH, 1);
+    processor->decoder = audio_decoder_create(processor->dec_input, processor->dec_output, CODEC_SAMPLE_RATE, 2);
+    processor->sr = audio_sr_create(processor->enc_input);
+
+    return processor;
+}
+
+void audio_processor_destroy(audio_processor_t *processor)
+{
+    audio_encoder_destroy(processor->encoder);
+    audio_decoder_destroy(processor->decoder);
+    audio_sr_destroy(processor->sr);
+
+    vRingbufferDelete(processor->enc_input);
+    vRingbufferDelete(processor->enc_output);
+    vRingbufferDelete(processor->dec_input);
+    vRingbufferDelete(processor->dec_output);
+
+    free(processor);
+}
+
+void audio_processor_start(audio_processor_t *processor)
+{
+    processor->is_running = true;
+    audio_encoder_start(processor->encoder);
+    audio_decoder_start(processor->decoder);
+    audio_sr_start(processor->sr);
+    xTaskCreatePinnedToCoreWithCaps(audio_processor_play_task, "play_task",
+                                    PLAY_TASK_STACK_SIZE, processor,
+                                    PLAY_TASK_PRIORITY, NULL,
+                                    PLAY_TASK_CORE_ID, MALLOC_CAP_SPIRAM);
+}
+
+void audio_processor_stop(audio_processor_t *processor)
+{
+    processor->is_running = false;
+    audio_encoder_stop(processor->encoder);
+    audio_decoder_stop(processor->decoder);
+    audio_sr_stop(processor->sr);
+}
+
+size_t audio_processor_read(audio_processor_t *processor, void *buffer, size_t size)
+{
+    // 从enc_output读数据
+    size_t size_read = 0;
+    void *buf_read = xRingbufferReceive(processor->enc_output, &size_read, portMAX_DELAY);
+    if (size < size_read)
+    {
+        ESP_LOGW(TAG, "buffer size is not enough, request size: %u, actual size: %u", size, size_read);
+        size_read = size;
+    }
+
+    memcpy(buffer, buf_read, size_read);
+    vRingbufferReturnItem(processor->enc_output, buf_read);
+
+    return size_read;
+}
+
+void audio_processor_write(audio_processor_t *processor, const void *buffer, size_t size)
+{
+    xRingbufferSend(processor->dec_input, buffer, size, portMAX_DELAY);
+}
+
+void audio_processor_register_callback(audio_processor_t *processor, audio_sr_event_t event, esp_event_handler_t callback, void *arg)
+{
+    audio_sr_register_callback(processor->sr, event, callback, arg);
+}
+
+void audio_processor_set_vad_state(audio_processor_t *processor, bool state)
+{
+    audio_sr_set_vad_state(processor->sr, state);
+}

@@ -35,13 +35,12 @@ static void bsp_board_wifi_event_handler(void *event_handler_arg,
     }
 }
 
-void bsp_board_wifi_init(bsp_board_t *board)
+void bsp_board_wifi_init(bsp_board_t *board, char* payload, size_t len)
 {
-    // 检查nvs状态
     bool ret = bsp_board_check_status(board, BSP_BOARD_NVS_BIT, 0);
     if (!ret)
     {
-        ESP_LOGW(TAG, "NVS not initialized");
+        ESP_LOGW(TAG, "NVS not initialized, skipping WiFi initialization");
         return;
     }
 
@@ -52,19 +51,19 @@ void bsp_board_wifi_init(bsp_board_t *board)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
 
-    // 注册wifi和ip的事件回调
+    // 注册wifi和ip事件回调
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, bsp_board_wifi_event_handler, board, NULL));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, bsp_board_wifi_event_handler, board, NULL));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &bsp_board_wifi_event_handler, board, NULL));
 
-    // 创建wifi任务
+    // 创建wifi_task
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     // 获取mac地址
-    uint8_t mac[6] = {0};
-    esp_wifi_get_mac(ESP_IF_WIFI_STA, mac);
-    snprintf(board->mac, sizeof(board->mac), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    uint8_t eth_mac[6];
+    esp_wifi_get_mac(ESP_IF_WIFI_STA, eth_mac);
+    snprintf(board->mac, sizeof(board->mac), "%02x:%02x:%02x:%02x:%02x:%02x", eth_mac[0], eth_mac[1], eth_mac[2], eth_mac[3], eth_mac[4], eth_mac[5]);
 
     // 初始化配网manager
     wifi_prov_mgr_config_t config = {
@@ -73,32 +72,31 @@ void bsp_board_wifi_init(bsp_board_t *board)
     };
     ESP_ERROR_CHECK(wifi_prov_mgr_init(config));
 
-    // 检查配网状态
+    // 检查是否已经配网
     bool provisioned = false;
     // wifi_prov_mgr_reset_provisioning();
     ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
     if (!provisioned)
     {
-        // 开始配网
+        // 没有配网，启动配网
         // 通过mac地址获取默认的服务名称
-        char service_name[15] = {0};
-        snprintf(service_name, sizeof(service_name), "XIAOZHI_%02X%02X%02X", mac[3], mac[4], mac[5]);
-        wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1, SECURITY_KEY, service_name, NULL);
+        char service_name[15];
+        snprintf(service_name, sizeof(service_name), "XIAOZHI_%02X%02X%02X", eth_mac[3], eth_mac[4], eth_mac[5]);
 
+        wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1, SECURITY_KEY, service_name, NULL);
         // 获取二维码字符串
-        char payload[150] = {0};
-        snprintf(payload, sizeof(payload), "{\"ver\":\"v1\",\"name\":\"%s\",\"pop\":\"%s\",\"transport\":\"ble\"}", service_name, SECURITY_KEY);
+        snprintf(payload, len, "{\"ver\":\"v1\",\"name\":\"%s\",\"pop\":\"%s\",\"transport\":\"ble\"}", service_name, SECURITY_KEY);
+
         ESP_LOGI(TAG, "https://espressif.github.io/esp-jumpstart/qrcode.html?data=%s", payload);
     }
     else
     {
-        // 配网成功，开始连接wifi
-        ESP_LOGI(TAG, "Already provisioned, starting Wi-Fi...");
-        // 配置wifi
+        ESP_LOGI(TAG, "Already provisioned, starting WiFi...");
+        // 配置WiFi
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+
         // 启动wifi
         ESP_ERROR_CHECK(esp_wifi_start());
-
     }
 }
 

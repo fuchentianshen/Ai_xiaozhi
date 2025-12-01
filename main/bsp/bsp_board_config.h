@@ -34,3 +34,6 @@
 #define LCD_PIN_DC             45
 #define LCD_PIN_RST            16
 #define LCD_PIN_BK_LIGHT       40
+
+#define LCD_WIDTH              240
+#define LCD_HEIGHT             320
